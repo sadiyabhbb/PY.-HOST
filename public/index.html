@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Likhon Headshot Panel V2</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{
+      background:#0d1117;color:#c9d1d9;font-family:"Fira Code",monospace;
+      display:flex;min-height:100vh;overflow-x:hidden;
+    }
+    /* --- SECURITY CSS START --- */
+    #sidebar, #main {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
+    .panel-accessible #sidebar, .panel-accessible #main {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    #authModal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.95);
+      display: none; 
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    .show-auth #authModal {
+        display: flex;
+    }
+    /* --- SECURITY CSS END --- */
+    
+    #sidebar{width:240px;background:#161b22;border-right:1px solid #30363d;position:fixed;
+      left:-260px;top:0;bottom:0;transition:0.3s;padding:1rem;display:flex;flex-direction:column;gap:1rem;z-index:999;}
+    #sidebar.show{left:0}
+    #overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:none;}
+    #overlay.show{display:block;}
+    .btn{
+      background:#238636;color:#fff;padding:0.5rem 1rem;border:none;border-radius:6px;cursor:pointer;
+      font-size:14px;transition:all 0.2s ease;box-shadow:0 3px #1a472a;
+    }
+    .btn:hover{background:#2ea043;transform:translateY(-2px);box-shadow:0 5px #1f512e;}
+    .btn:active{transform:translateY(2px);box-shadow:inset 0 3px #1a472a;}
+    .btn.ghost{background:transparent;border:1px solid #30363d;box-shadow:none;}
+    .btn.ghost:hover{background:#21262d;}
+    .btn.danger{background:#da3633;box-shadow:0 3px #6e1c1a;}
+    .btn.danger:hover{background:#f85149;transform:translateY(-2px);}
+    #main{flex:1;margin-left:0;transition:0.3s;width:100%;padding:1rem;}
+    header{display:flex;align-items:center;justify-content:space-between;background:#161b22;
+      padding:0.8rem 1rem;border-bottom:1px solid #30363d;border-radius:8px;}
+    #menuBtn{background:none;border:none;color:#fff;font-size:20px;cursor:pointer;}
+    #cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;margin-top:1rem;}
+    .card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:1rem;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 0 5px rgba(0,0,0,0.4);}
+    .card-head{display:flex;align-items:center;justify-content:space-between;}
+    .card-title{font-weight:600;font-size:1rem;color:#58a6ff;}
+    .card-sub{font-size:0.85rem;color:#8b949e;}
+    .card-actions{display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.8rem;}
+    #createSection,#serversSection{display:none;margin-top:1rem;opacity:0;transition:opacity 0.6s ease;}
+    #createSection.show,#serversSection.show{display:block;opacity:1;}
+    input{width:100%;padding:0.5rem;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#fff;margin-bottom:0.7rem;font-family:"Fira Code";}
+    #modal{position:fixed;inset:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:1000;}
+    #modal.show{display:flex;}
+    .modal-inner{background:#161b22;border:1px solid #30363d;border-radius:8px;width:95%;max-width:900px;height:80%;display:flex;flex-direction:column;padding:1rem;}
+    .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;}
+    #modalLog{flex:1;overflow-y:auto;white-space:pre-wrap;font-size:13px;background:#0d1117;
+      padding:1rem;border-radius:6px;border:1px solid #30363d;}
+    #modalMeta{font-size:12px;color:#8b949e;}
+    .json-box{background:#000;border:1px solid #30363d;overflow:hidden;padding:0.8rem;border-radius:8px;font-size:14px;white-space:pre-wrap;margin-top:1rem;}
+    footer{margin-top:0.6rem;text-align:right;font-size:12px;color:#58a6ff;}
+    @keyframes neon{0%{filter:hue-rotate(0deg);}100%{filter:hue-rotate(360deg);}}
+    
+    #createError {
+        color: #f85149; 
+        background: #30363d; 
+        padding: 0.5rem;
+        margin-bottom: 1rem;
+        border-radius: 4px;
+        text-align: center;
+        display: none; 
+        font-size: 0.9rem;
+    }
+    
+    .bot-uptime {
+        font-size: 0.85rem;
+        color: #58a6ff;
+        font-weight: 600;
+        margin-top: 5px; 
+    }
+    
+    /* ✅ নতুন CSS: Input এবং Eye আইকনের জন্য */
+    .input-container {
+        position: relative;
+        margin-bottom: 1rem; /* input এর পুরোনো margin-bottom এর কাজ করছে */
+    }
+    .input-container input {
+        margin-bottom: 0; /* পুরোনো input এর মার্জিন সরিয়ে দেওয়া হলো */
+        padding-right: 2.5rem; /* আইকনের জন্য জায়গা তৈরি করা */
+    }
+    .toggle-password {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #8b949e;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: color 0.2s;
+    }
+    .toggle-password:hover {
+        color: #c9d1d9;
+    }
+  </style>
+</head>
+<body>
+  
+  <div id="overlay"></div>
+
+  <div id="authModal">
+    <div class="modal-inner" style="max-width:400px; height: auto; padding: 2rem;">
+      <h3 style="margin-bottom:1.5rem; color:#58a6ff;">Enter Panel Key/Token</h3>
+      
+      <div class="input-container">
+        <input id="keyInput" type="password" placeholder="Enter Key or Token" />
+        <i class="fas fa-eye toggle-password" id="togglePassword"></i>
+      </div>
+      
+      <div id="authError" style="color: #da3633; font-size: 14px; margin-bottom: 1rem; display: none;"></div>
+      <button class="btn" id="keySubmit">Access Panel</button>
+    </div>
+  </div>
+  <aside id="sidebar">
+    <h2 style="color:#58a6ff;">Server Panel</h2>
+    <button class="btn" id="btnServers">Servers</button>
+    <button class="btn" id="btnCreate">Create Bot</button>
+    <button class="btn ghost" id="btnRefresh">Refresh</button>
+  </aside>
+
+  <main id="main">
+    <header>
+      <button id="menuBtn">☰</button>
+      <h2>Server Panel</h2>
+    </header>
+
+    <section id="serversSection" class="show">
+      <h3 style="margin-top:1rem;">Server List</h3>
+      <div id="serverSummary" style="color:#8b949e;font-size:14px;margin:0.4rem 0;">Loading...</div>
+      <div id="cards"></div>
+
+      <h3 style="margin-top:2rem;">Host Info</h3>
+      <div id="infoBox" class="json-box">Loading host info...</div>
+    </section>
+
+    <section id="createSection">
+      <h3 style="margin-top:1rem;">Create New Bot</h3>
+      
+      <div id="createError"></div> 
+
+      <input id="repo" placeholder="Repository URL (e.g. https://github.com/user/repo.git)" />
+      <input id="entry" placeholder="Entry File (default: index.js)" />
+      <input id="name" placeholder="Bot Name (optional)" />
+      <div style="display:flex;gap:0.5rem;">
+        <button class="btn" id="createBtn">Create</button>
+        <button class="btn ghost" id="cancelCreate">Cancel</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="modal">
+    <div class="modal-inner">
+      <div class="modal-head">
+        <div>
+          <div id="modalTitle" style="color:#58a6ff;">Console</div>
+          <div id="modalMeta"></div>
+        </div>
+        <div style="display:flex;gap:0.5rem;">
+          <button class="btn ghost" id="modalCopy">Copy</button>
+          <button class="btn ghost" id="modalClear">Clear</button>
+          <button class="btn danger" id="modalClose">Close</button>
+        </div>
+      </div>
+      <pre id="modalLog">Loading...</pre>
+    </div>
+  </div>
+
+<script>
+(function(){
+  // --- SESSION CONSTANTS (Token System) ---
+  const SESSION_KEY = 'panel_token'; 
+  const EXPIRY_KEY = 'panel_expiry';
+  // -------------------------
+
+  const socket = io({reconnection:true,reconnectionDelay:1000});
+  const cards=document.getElementById('cards');
+  const infoBox=document.getElementById('infoBox');
+  const serverSummary=document.getElementById('serverSummary');
+  const menuBtn=document.getElementById('menuBtn'),sidebar=document.getElementById('sidebar'),overlay=document.getElementById('overlay');
+  const btnServers=document.getElementById('btnServers'),btnCreate=document.getElementById('btnCreate'),btnRefresh=document.getElementById('btnRefresh');
+  const createSection=document.getElementById('createSection'),serversSection=document.getElementById('serversSection');
+  const repo=document.getElementById('repo'),entry=document.getElementById('entry'),name=document.getElementById('name');
+  const createBtn=document.getElementById('createBtn'),cancelCreate=document.getElementById('cancelCreate');
+  const modal=document.getElementById('modal'),modalLog=document.getElementById('modalLog'),
+        modalTitle=document.getElementById('modalTitle'),modalMeta=document.getElementById('modalMeta');
+  const modalCopy=document.getElementById('modalCopy'),modalClear=document.getElementById('modalClear'),modalClose=document.getElementById('modalClose');
+  
+  // Security Variables
+  const authModal = document.getElementById('authModal');
+  const keyInput = document.getElementById('keyInput');
+  const authError = document.getElementById('authError');
+  const keySubmit = document.getElementById('keySubmit');
+  const togglePassword = document.getElementById('togglePassword'); // ✅ নতুন আইকন এলিমেন্ট
+  
+  // Error message element
+  const createError = document.getElementById('createError'); 
+
+  let attachedId=null,bots=[];
+
+  function openSidebar(){sidebar.classList.add('show');overlay.classList.add('show');}
+  function closeSidebar(){sidebar.classList.remove('show');overlay.classList.remove('show');}
+  menuBtn.onclick=openSidebar;overlay.onclick=()=>{closeSidebar();closeModal();};
+  btnServers.onclick=()=>{switchSection('servers');closeSidebar();};
+  btnCreate.onclick=()=>{switchSection('create');closeSidebar();};
+  btnRefresh.onclick=()=>{location.reload();};
+
+  function switchSection(section){
+    [createSection,serversSection].forEach(s=>s.classList.remove('show'));
+    if(section==='create'){
+        createSection.classList.add('show');
+        createError.style.display = 'none'; 
+        createError.textContent = '';
+    }
+    else{serversSection.classList.add('show');}
+  }
+
+  async function api(path,method='POST',body){
+    const token = localStorage.getItem(SESSION_KEY);
+    
+    if (!token && path !== '/api/generate-token') { 
+        throw new Error("Missing Token. Unauthorized access.");
+    }
+    
+    let finalBody = body || {};
+    
+    if (['GET', 'DELETE'].includes(method.toUpperCase())) {
+        path += (path.includes('?') ? '&' : '?') + 'token=' + token;
+    } else {
+        finalBody.token = token; 
+    }
+
+    const response = await fetch(path,{
+        method,
+        headers:{'content-type':'application/json'},
+        body: ['GET', 'DELETE'].includes(method.toUpperCase()) ? null : JSON.stringify(finalBody)
+    });
+
+    if (response.status === 401) {
+        localStorage.removeItem(SESSION_KEY);
+        localStorage.removeItem(EXPIRY_KEY);
+        authError.textContent = "Session expired. Please re-enter Key/Token.";
+        authError.style.display = 'block';
+        document.body.classList.remove('panel-accessible');
+        
+        document.body.classList.add('show-auth');
+        
+        throw new Error("Unauthorized access.");
+    }
+    
+    return response.json();
+  }
+
+  createBtn.onclick=async()=>{
+    createError.style.display = 'none';
+    createError.textContent = '';
+
+    if(!repo.value.trim()){
+      createError.textContent = "Repository URL is required!";
+      createError.style.display = 'block'; 
+      return;
+    }
+    
+    createBtn.disabled=true;
+    createBtn.textContent='Creating...'; 
+
+    try {
+        await api('/api/deploy','POST',{
+          repoUrl:repo.value.trim(),
+          entry:entry.value.trim()||'index.js',
+          name:name.value.trim()
+        });
+
+        repo.value=entry.value=name.value='';
+        switchSection('servers');
+        serversSection.style.opacity = 1; 
+        loadBots();
+
+    } catch (error) {
+        console.error("Deploy API call failed:", error);
+        createError.textContent = "Bot deployment failed. Check server logs.";
+        createError.style.display = 'block'; 
+    } finally {
+        createBtn.disabled=false;
+        createBtn.textContent='Create';
+    }
+  };
+
+  cancelCreate.onclick=()=>switchSection('servers');
+
+  function renderCards(list){
+    bots=list||[];cards.innerHTML='';
+    if(!list.length){serverSummary.textContent='No servers found.';return;}
+    serverSummary.textContent=`${list.length} total bots • ${list.filter(x=>x.status==='running').length} running`;
+    list.forEach(b=>{
+      const c=document.createElement('div');c.className='card';
+      c.innerHTML=`
+        <div class="card-head">
+          <div>
+            <div class="card-title">${b.name}</div>
+            <div class="card-sub">${b.entry}</div>
+            <div class="bot-uptime">${b.botUptime}</div>
+          </div>
+          <div class="meta">${b.status}</div>
+        </div>
+        <div class="card-actions">
+          <button class="btn ghost btn-start">Start</button>
+          <button class="btn ghost btn-stop">Stop</button>
+          <button class="btn ghost btn-update">Update</button>
+          <button class="btn danger btn-delete">Delete</button>
+          <button class="btn ghost btn-logs">Logs</button>
+        </div>`;
+      c.querySelector('.btn-start').onclick=()=>api(`/api/${b.id}/start`,'POST').then(()=>loadBots());
+      c.querySelector('.btn-stop').onclick=()=>api(`/api/${b.id}/stop`,'POST').then(()=>loadBots());
+      c.querySelector('.btn-update').onclick=()=>api(`/api/${b.id}/update`,'POST').then(()=>loadBots());
+      c.querySelector('.btn-delete').onclick=()=>api(`/api/${b.id}/delete`,'DELETE').then(()=>loadBots());
+      c.querySelector('.btn-logs').onclick=()=>{openModal(b.id,b.name);location.hash=`bot-${b.id}`;};
+      cards.appendChild(c);
+    });
+  }
+
+  function openModal(id,name){
+    attachedId=id;modal.classList.add('show');
+    modalTitle.textContent='Server Console — '+name;
+    modalMeta.textContent='attached: '+name;
+    modalLog.textContent='Loading logs...';
+    socket.emit('attachConsole',id);
+    api('/api/'+id+'/logs','GET').then(j=>{ 
+      if(!attachedId)return;
+      modalLog.textContent=(j.logs||[]).join('');
+      modalLog.scrollTop=modalLog.scrollHeight;
+    }).catch(e => {
+        if(attachedId) modalLog.textContent = 'Failed to load logs.';
+    });
+  }
+
+  function closeModal(){
+    if(attachedId)socket.emit('detachConsole',attachedId);
+    modal.classList.remove('show');attachedId=null;
+    if(location.hash.startsWith('#bot-'))history.replaceState(null,'',location.pathname+location.search);
+  }
+
+  modalClose.onclick=closeModal;
+  modalCopy.onclick=async()=>{
+    await navigator.clipboard.writeText(modalLog.textContent);
+    modalCopy.textContent='Copied';setTimeout(()=>modalCopy.textContent='Copy',800);
+  };
+  modalClear.onclick=()=>modalLog.textContent='';
+
+  socket.on('bots',renderCards);
+  socket.on('log',({id,text})=>{
+    if(attachedId===id){
+      modalLog.textContent+=text;
+      if(modalLog.textContent.length>100000)modalLog.textContent=modalLog.textContent.slice(-80000);
+      modalLog.scrollTop=modalLog.scrollHeight;
+    }
+  });
+  socket.on('initLogs',(txt)=>{
+    if(attachedId){modalLog.textContent=txt||'';modalLog.scrollTop=modalLog.scrollHeight;}
+  });
+
+  function formatSeconds(totalSeconds) {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${hours}h ${minutes}m ${seconds}s`;
+  }
+
+  async function updateInfo(){
+    try{
+      const h=await api('/api/host','GET');
+      const b=await api('/api/bots','GET');
+      const toGB=(v)=>((Number(v)||0)/1024/1024/1024).toFixed(2)+' GB';
+      h.memory.totalGB=toGB(h.memory.total);
+      h.memory.freeGB=toGB(h.memory.free);
+      
+      const obj={
+        host:h,
+        panel:{
+          version:'v4.7',
+          bots_total:b.length,
+          bots_running:b.filter(x=>x.status==='running').length,
+          uptime: formatSeconds(h.uptime) 
+        }
+      };
+      
+      let json=JSON.stringify(obj,null,2)
+        .replace(/"([^"]+)":/g,'<span style="color:#00ffd1">"$1"</span>:')
+        .replace(/:\s*"([^"]+)"/g,': <span style="color:#ffda79">"$1"</span>')
+        .replace(/:\s*(\d+)/g,': <span style="color:#80ffb3">$1</span>');
+      infoBox.innerHTML=`<div style="animation:neon 5s linear infinite;background:linear-gradient(90deg,#00ffd1,#00b3ff,#ff7bd1);-webkit-background-clip:text;color:transparent;">${json}</div>`;
+    }catch(e){
+        if (e.message !== "Unauthorized access.") {
+             infoBox.textContent='Host info error.';
+        }
+    }
+  }
+
+  function loadBots(){return api('/api/bots','GET').then(renderCards).then(updateInfo).catch(() => {});}
+
+  const handleKeySubmit = async (keyFromSession) => {
+      authError.style.display = 'none';
+      
+      const keyOrToken = keyFromSession || keyInput.value.trim();
+      
+      if (!keyOrToken) {
+          authError.textContent = "Please enter the Key or Token.";
+          authError.style.display = 'block';
+          return;
+      }
+      
+      keySubmit.disabled = true;
+      keySubmit.textContent = 'Verifying...';
+      
+      try {
+          let token = keyOrToken; 
+          
+          if (!keyFromSession) {
+              const generateResponse = await fetch('/api/generate-token', {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify({ key: keyOrToken })
+              });
+
+              const generateData = await generateResponse.json();
+
+              if (generateData.success) {
+                  token = generateData.token;
+              }
+          }
+          
+          const verifyResponse = await fetch('/api/verify', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ token: token })
+          });
+
+          const data = await verifyResponse.json();
+
+          if (data.success) {
+              localStorage.setItem(SESSION_KEY, token);
+              const expiryTime = Date.now() + (data.expires_in || 6 * 60 * 60 * 1000); 
+              localStorage.setItem(EXPIRY_KEY, expiryTime);
+              
+              document.body.classList.remove('show-auth'); 
+              document.body.classList.add('panel-accessible'); 
+              loadBots(); 
+              setInterval(updateInfo,7000); 
+              
+          } else {
+              localStorage.removeItem(SESSION_KEY);
+              localStorage.removeItem(EXPIRY_KEY);
+              authError.textContent = "Access Denied: Invalid Key/Token or Session Expired.";
+              authError.style.display = 'block';
+              document.body.classList.add('show-auth');
+          }
+          
+      } catch (error) {
+          console.error("Auth process failed:", error);
+          authError.textContent = "Server Error. Could not connect or Unauthorized.";
+          authError.style.display = 'block';
+          document.body.classList.add('show-auth');
+      } finally {
+          keySubmit.disabled = false;
+          keySubmit.textContent = 'Access Panel';
+      }
+  };
+
+  // ✅ পাসওয়ার্ড টগল লজিক
+  togglePassword.onclick = () => {
+      const type = keyInput.type === 'password' ? 'text' : 'password';
+      keyInput.type = type;
+      // আইকন পরিবর্তন
+      togglePassword.classList.toggle('fa-eye');
+      togglePassword.classList.toggle('fa-eye-slash');
+  };
+  
+  keySubmit.onclick = () => handleKeySubmit();
+  keyInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') handleKeySubmit();
+  });
+
+  const checkSessionAndAuthenticate = () => {
+    const savedToken = localStorage.getItem(SESSION_KEY);
+    const expiryTime = localStorage.getItem(EXPIRY_KEY);
+    const now = Date.now();
+
+    if (savedToken && expiryTime && now < parseInt(expiryTime)) {
+        handleKeySubmit(savedToken); 
+    } else {
+        localStorage.removeItem(SESSION_KEY);
+        localStorage.removeItem(EXPIRY_KEY);
+        
+        document.body.classList.add('show-auth'); 
+    }
+  };
+  
+  checkSessionAndAuthenticate();
+  window.addEventListener('beforeunload',()=>{if(attachedId)socket.emit('detachConsole',attachedId);});
+})();
+</script>
+</body>
+</html>
