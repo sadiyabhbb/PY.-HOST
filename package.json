@@ -1,0 +1,39 @@
+{
+  "name": "multi-bot-runner",
+  "version": "2.0.0",
+  "description": "Node.js + Python Telegram Bot auto runner panel",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.4",
+    "body-parser": "^1.20.3",
+    "chalk": "^5.3.0",
+    "child_process": "^1.0.2",
+    "cors": "^2.8.5",
+    "express": "^4.21.1",
+    "form-data": "^4.0.2",
+    "fs-extra": "^11.2.0",
+    "morgan": "^1.10.0",
+    "uuid": "^9.0.1",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18.x"
+  },
+  "keywords": [
+    "node",
+    "python",
+    "bot-runner",
+    "telegram",
+    "auto-deploy",
+    "hosting"
+  ],
+  "author": "Sathi + GPT",
+  "license": "MIT"
+}
