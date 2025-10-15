@@ -1,7 +1,7 @@
 {
-  "name": "multi-bot-runner",
+  "name": "py-host",
   "version": "2.0.0",
-  "description": "Node.js + Python Telegram Bot auto runner panel",
+  "description": "Render-ready Node.js + Python bot hosting panel",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -17,6 +17,7 @@
     "form-data": "^4.0.2",
     "fs-extra": "^11.2.0",
     "morgan": "^1.10.0",
+    "socket.io": "^4.7.5",
     "uuid": "^9.0.1",
     "ws": "^8.18.0"
   },
@@ -29,10 +30,12 @@
   "keywords": [
     "node",
     "python",
-    "bot-runner",
     "telegram",
+    "bot-hosting",
     "auto-deploy",
-    "hosting"
+    "socket.io",
+    "express",
+    "render"
   ],
   "author": "Sathi + GPT",
   "license": "MIT"
